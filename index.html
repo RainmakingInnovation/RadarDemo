@@ -1816,6 +1816,13 @@
                 .enter()
                 .append("path")
                 .attr("class", "segment " + "year-" + v.key + "-segments")
+                .style("filter", function(d, i) {
+                  if (i > 2) {
+                    return "url(#blur2)"
+                  } else {
+                    ""
+                  }
+                })
                 .attr("id", function(d) {
                   return (
                     "year-" +
@@ -2378,27 +2385,7 @@
               //d3.select(id).remove();
             });
 
-            count_by_year.forEach(function(d) {
-              d.fn
-                .append("text")
-                .attr("class", "year-label-text")
-                .attr("id", "year-" + d.key + "-label-path-text")
-                .append("textPath")
-                .attr("xlink:href", "#year-" + d.key + "-label-path")
-                .attr("startOffset", "50%")
-                .text(d.key)
-                .attr("opacity", 0)
 
-                chartPieData.forEach(function(v) {
-                  d3.select(
-                    "#year-" +
-                      d.key +
-                      "-" +
-                      v.data.value.key.replace(/ /g, "-").replace(/&/g, "and") +
-                      "-segment"
-                  ).attr("opacity", 0);
-                });
-              });
 
             chartPieData.forEach(function(d, i) {
               if (i > 2) {
@@ -3573,7 +3560,7 @@
                     .append("textPath")
                     .attr("xlink:href", "#year-" + d.key + "-label-path")
                     .attr("startOffset", "50%")
-                    .text(d.key);
+                    .text(d.key)
   
                   chartPieData.forEach(function(v) {
                     d3.select(
