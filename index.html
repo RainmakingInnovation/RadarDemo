@@ -1138,7 +1138,11 @@
     <div id="control-container">
       <div>
           <div>
-
+            <div class="button b2" id="button-16">
+              <input type="checkbox" class="checkbox" />
+              <div class="knobs"></div>
+              <div class="layer"></div>
+            </div>
     
             <div>
               <div class="button b2" id="button-17">
@@ -1222,13 +1226,13 @@
             .append("filter")
               .attr("id", "blur")
             .append("feGaussianBlur")
-              .attr("stdDeviation", 0.5);
+              .attr("stdDeviation", 1);
 
-              var filter2 = svg.append("defs")
-              .append("filter")
-                .attr("id", "blur2")
-              .append("feGaussianBlur")
-                .attr("stdDeviation", 3);
+          var filter2 = svg.append("defs")
+          .append("filter")
+            .attr("id", "blur2")
+          .append("feGaussianBlur")
+            .attr("stdDeviation", 3);
   
         var chartSVG = svg
           .append("g")
@@ -1310,14 +1314,20 @@
               "dummy_npdes.csv"
             ).then(function(dummy_data) {
 
-              dummy_data.forEach(function(d) {
-                data.push(d)
-              })
+
 
             data = data.filter(function(d) {
               return d["Inc. Radar"] === "TRUE"
             }).filter(function(d) {
               return d["Opportunity Space"] !== ""
+            }).filter(function(d) {
+              return d["Founded"] !== "" && d["Founded"]
+            })
+
+            dummy_data.forEach(function(d) {
+              d["Founded"] = (2000).toString()
+              console.log(d["Opportunity Space"])
+              data.push(d)
             })
 
 
@@ -1596,6 +1606,24 @@
               })
               .entries(data);
 
+              var count_by_year = d3
+              .nest()
+              .key(function(d) {
+                return d["Founded"];
+              })
+              .sortKeys(d3.ascending)
+              .rollup(function(v) {
+                return v.length;
+              })
+              .entries(data);
+
+              var yearList = [];
+              count_by_year.forEach(function(d, i) {
+                d.inner = 50 + (i * 250) / count_by_year.length;
+                d.outer = 50 + ((i + 1) * 250) / count_by_year.length;
+                yearList.push(d.key);
+              });
+
               console.log(count_by_funding_stage)
 
   
@@ -1693,6 +1721,10 @@
   
             var chartPieData = chartPie(d3.entries(focusAreaSorted));
 
+            var yearSegmentColorScale = d3
+            .scaleOrdinal()
+            .domain(yearList)
+            .range(["#f4f4f4"]);
   
             /*         .range([
                   "#F6F6F6",
@@ -1772,6 +1804,31 @@
                 .attr("opacity", 1);
             });
 
+            count_by_year.forEach(function(v) {
+              var tmpArc = d3
+                .arc()
+                .innerRadius(v.inner)
+                .outerRadius(v.outer);
+  
+              var tmpSegment = chartSVG
+                .selectAll("year-segment")
+                .data(chartPieData)
+                .enter()
+                .append("path")
+                .attr("class", "segment " + "year-" + v.key + "-segments")
+                .attr("id", function(d) {
+                  return (
+                    "year-" +
+                    v.key +
+                    "-" +
+                    d.data.value.key.replace(/ /g, "-").replace(/&/g, "and") +
+                    "-segment"
+                  );
+                })
+                .attr("d", tmpArc)
+                .attr("opacity", 0)
+                .attr("fill", yearSegmentColorScale(v.key));
+            });
   
             var numSegments = focusAreaSorted.length;
   
@@ -2262,6 +2319,27 @@
               .attr("startOffset", "50%")
               .text("Emerging");
 
+              count_by_year.forEach(function(d, i) {
+                this["year" + d.key + "LabelRadius"] = d.outer - 10;
+    
+                this["year" + d.key + "Label"] = chartSVG
+                  .append("g")
+                  .classed("year-labels", true);
+    
+                this["year" + d.key + "Label"]
+                  .append("def")
+                  .append("path")
+                  .attr("id", "year-" + d.key + "-label-path")
+                  .attr(
+                    "d",
+                    "m " +
+                      -this["year" + d.key + "LabelRadius"] +
+                      " 0 a 50 50 0 1 1 " +
+                      2 * this["year" + d.key + "LabelRadius"] +
+                      " 0"
+                  );
+                d.fn = this["year" + d.key + "Label"];
+              });
   
             var distantLabel = chartSVG
               .append("g")
@@ -2300,11 +2378,33 @@
               //d3.select(id).remove();
             });
 
+            count_by_year.forEach(function(d) {
+              d.fn
+                .append("text")
+                .attr("class", "year-label-text")
+                .attr("id", "year-" + d.key + "-label-path-text")
+                .append("textPath")
+                .attr("xlink:href", "#year-" + d.key + "-label-path")
+                .attr("startOffset", "50%")
+                .text(d.key)
+                .attr("opacity", 0)
+
+                chartPieData.forEach(function(v) {
+                  d3.select(
+                    "#year-" +
+                      d.key +
+                      "-" +
+                      v.data.value.key.replace(/ /g, "-").replace(/&/g, "and") +
+                      "-segment"
+                  ).attr("opacity", 0);
+                });
+              });
+
             chartPieData.forEach(function(d, i) {
               if (i > 2) {
-                var numNodes0 = Math.round(Math.random() * 4 - 1)
-                var numNodes1 = Math.round(Math.random() * 5 + 3)
-                var numNodes2 = Math.round(Math.random() * 6 + 4)
+                var numNodes0 = Math.round(Math.random() * 3 - 1)
+                var numNodes1 = Math.round(Math.random() * 4 + 2)
+                var numNodes2 = Math.round(Math.random() * 5 + 3)
                 for (let i = 0; i <= numNodes0; i++) {
                   addRandom(d.data.value.key, 'Distant')
                 }
@@ -2324,8 +2424,8 @@
               object["Opportunity Space"] = targetOppSpace
               object["Maturity"] = targetMaturity
               object["Total funding (US$)"] = 0
+              object["Founded"] = (2000 + Math.round(Math.random()*19)).toString()
               var randomIndex = Math.random() * 10
-              console.log(randomIndex)
               if (randomIndex < 3) {
                 object["Funding Stage"] = "Undisclosed"
               } else {
@@ -2436,6 +2536,48 @@
 
               });
 
+              var nodeSecondList = [];
+              data.forEach(function(d) {
+                //console.log(d)
+                for (i = 0; i < chartPieData.length; i++) {
+                  if (d["Opportunity Space"] === chartPieData[i].data.value.key) {
+                    var tmp_startAngleMin = chartPieData[i].startAngle + 0.025;
+                    var tmp_endAngleMax = chartPieData[i].endAngle - 0.025;
+                    break;
+                  }
+                }
+    
+                for (i = 0; i < count_by_year.length; i++) {
+                  if (d["Founded"] === count_by_year[i].key) {
+                    //console.log('InnerRadius:', count_by_year[i]['inner'])
+                    //console.log('OuterRadius:', count_by_year[i]['outer'])
+                    tmp_innerRadiusMin = count_by_year[i]["inner"] + 6;
+                    tmp_outerRadiusMax = count_by_year[i]["outer"] - 6;
+                    break;
+                  }
+                }
+                for (i = 0; i < nodeSecondData.length; i++) {
+                  if (nodeSecondData[i].key === d["Opportunity Space"]) {
+                    for (j = 0; j < nodeSecondData[i].values.length; j++) {
+                      if (nodeSecondData[i].values[j].key === d["Founded"]) {
+                        var results = assignRandom(
+                          tmp_startAngleMin,
+                          tmp_endAngleMax,
+                          tmp_innerRadiusMin,
+                          tmp_outerRadiusMax,
+                          nodeSecondList
+                        );
+                        console.log(results)
+                      }
+                    }
+                  }
+                  console.log(results)
+                }
+                console.log(results)
+                d.yearX = results[0];
+                d.yearY = results[1];
+              });
+
   
             //switchRadial();
   
@@ -2496,6 +2638,7 @@
               .attr("cy", function(d) {
                 return d.y;
               })
+              .style("opacity", 0.4)
               .attr("fill", function(d) {
                 return nodeColorScale(
                     fundingCategoryScale(d["Funding Stage"])
@@ -2528,6 +2671,7 @@
               })
               .attr("x", 0)
               .attr("y", 0)
+              .style("opacity", 0.4)
               .attr("fill", "#FFFD82")
               .attr("transform", function(d) {
                 return "translate(" + d.x + "," + d.y + ")    rotate(45)";
@@ -3366,6 +3510,22 @@
                       return i(t);
                     };
                   });
+
+                  d3.selectAll(".nodes-random")
+                  .transition()
+                  .duration(animationDuration)
+                  .attrTween("cx", function(d) {
+                    var i = d3.interpolate(d.x, d.yearX);
+                    return function(t) {
+                      return i(t);
+                    };
+                  })
+                  .attrTween("cy", function(d) {
+                    var i = d3.interpolate(d.y, d.yearY);
+                    return function(t) {
+                      return i(t);
+                    };
+                  });
   
                 /* nodes_activity
                   .transition()
@@ -3378,7 +3538,7 @@
                     };
                   }); */
   
-                /* nodes_acquired
+                 nodes_acquired
                   .transition()
                   .duration(animationDuration)
                   .attrTween("transform", function(d) {
@@ -3387,7 +3547,18 @@
                     return function(t) {
                       return "translate(" + i(t) + "," + j(t) + ") rotate(45)";
                     };
-                  }); */
+                  }); 
+
+                  d3.selectAll(".nodes-random-acquired")
+                  .transition()
+                  .duration(animationDuration)
+                  .attrTween("transform", function(d) {
+                    var i = d3.interpolate(d.x, d.yearX);
+                    var j = d3.interpolate(d.y, d.yearY);
+                    return function(t) {
+                      return "translate(" + i(t) + "," + j(t) + ") rotate(45)";
+                    };
+                  }); 
   
                 maturity_list.forEach(function(d) {
                   var id = "#" + d.name.toLowerCase() + "-label-path-text";
@@ -3441,6 +3612,22 @@
                       return i(t);
                     };
                   });
+
+                  d3.selectAll(".nodes-random")
+                  .transition()
+                  .duration(animationDuration)
+                  .attrTween("cx", function(d) {
+                    var i = d3.interpolate(d.yearX, d.x);
+                    return function(t) {
+                      return i(t);
+                    };
+                  })
+                  .attrTween("cy", function(d) {
+                    var i = d3.interpolate(d.yearY, d.y);
+                    return function(t) {
+                      return i(t);
+                    };
+                  });
   
                 /* nodes_activity
                   .transition()
@@ -3452,8 +3639,8 @@
                       return "translate(" + i(t) + "," + j(t) + ")";
                     };
                   }); */
-  
-                /* nodes_acquired
+
+                  d3.selectAll(".nodes-random-acquired")
                   .transition()
                   .duration(animationDuration)
                   .attrTween("transform", function(d) {
@@ -3462,8 +3649,32 @@
                     return function(t) {
                       return "translate(" + i(t) + "," + j(t) + ") rotate(45)";
                     };
-                  }); */
+                  }); 
+  
+                 nodes_acquired
+                  .transition()
+                  .duration(animationDuration)
+                  .attrTween("transform", function(d) {
+                    var i = d3.interpolate(d.yearX, d.x);
+                    var j = d3.interpolate(d.yearY, d.y);
+                    return function(t) {
+                      return "translate(" + i(t) + "," + j(t) + ") rotate(45)";
+                    };
+                  }); 
 
+                  count_by_year.forEach(function(d) {
+                    var id = "#year-" + d.key + "-label-path-text";
+                    d3.select(id).remove();
+                    chartPieData.forEach(function(v) {
+                      d3.select(
+                        "#year-" +
+                          d.key +
+                          "-" +
+                          v.data.value.key.replace(/ /g, "-").replace(/&/g, "and") +
+                          "-segment"
+                      ).attr("opacity", 0);
+                    });
+                  });
   
                 maturity_list_elements.forEach(function(d, i) {
                   d.fn
@@ -4595,7 +4806,7 @@
                 Math.pow(nodeList[l][0] - tmp_x, 2) +
                   Math.pow(nodeList[l][1] - tmp_y, 2)
               );
-              if (distance <= 15) {
+              if (distance <= 1) {
                 distanceCheck = 1;
               }
             }
